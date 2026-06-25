@@ -216,10 +216,7 @@ class LimitModal(discord.ui.Modal, title="Set Member Limit"):
 
 
 async def send_temp_voice_interface(guild, member, voice_channel):
-    cmds_channel = discord.utils.get(guild.text_channels, name=TEMP_VOICE_CMDS_CHANNEL)
-    if cmds_channel is None:
-        print(f"Could not find channel: {TEMP_VOICE_CMDS_CHANNEL}")
-        return None
+    cmds_channel = voice_channel
 
     embed = discord.Embed(
         title=f"🎤 {member.display_name}'s Channel",
