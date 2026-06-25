@@ -236,15 +236,44 @@ async def send_temp_voice_interface(guild, member, voice_channel):
 
 
 # ── Events ──────────────────────────────────────────────────────────────────
+async def setup_temp_voice_interface():
+    await client.wait_until_ready()
+    guild = client.get_guild(GUILD_ID)
+    channel = discord.utils.get(guild.text_channels, name=TEMP_VOICE_CMDS_CHANNEL)
+    if channel is None:
+        return
 
+    async for msg in channel.history(limit=20):
+        if msg.author == client.user:
+            await msg.delete()
+
+    embed = discord.Embed(
+        title="🎤 Temp Voice Channels",
+        description=(
+            "**How to use:**\n\n"
+            "🔹 Join **Create-temp-voice🎤** to create your own VC\n"
+            "🔹 A private channel will be created for you\n"
+            "🔹 Use the buttons in your VC to manage it\n\n"
+            "**Controls:**\n"
+            "🔒 **Lock** — Stop others from joining\n"
+            "🔓 **Unlock** — Allow others to join\n"
+            "✏️ **Rename** — Change your channel name\n"
+            "👥 **Set Limit** — Set max members\n"
+            "🗑️ **Delete** — Delete your channel\n\n"
+            "Your channel auto-deletes when everyone leaves!"
+        ),
+        color=0x5865F2
+    )
+    embed.set_image(url=TEMP_VOICE_IMAGE)
+    await channel.send(embed=embed)
+    print("Temp voice interface sent!")
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
     load_ids()
     client.loop.create_task(keep_in_voice())
     client.loop.create_task(setup_reaction_roles())
-
-
+    client.loop.create_task(setup_temp_voice_interface())
 @client.event
 async def on_voice_state_update(member, before, after):
     global voice_client
