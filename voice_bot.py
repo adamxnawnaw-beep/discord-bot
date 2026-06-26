@@ -4,7 +4,7 @@ import json
 import os
 from discord.ui import Button, View
 
-BOT_TOKEN = os.environ.get("TOKEN")
+BOT_TOKEN    = os.environ.get("TOKEN")
 GUILD_ID     = 1334601401900204044
 VOICE_CH_ID  = 1351272912002224148
 
@@ -26,7 +26,7 @@ WELCOME_CHANNEL_NAME  = "👋・welcome"
 VERIFY_CHANNEL_NAME   = "✅・verification"
 RULES_CHANNEL_NAME    = "📜・rules"
 VERIFIED_ROLE_NAME    = "Verified"
-BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eec1c2bad91e6e3cc7f2977eab1216e62d428&"
+BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eac1c2bad91e6e3cc7f2977eab1216e62d428&"
 IDS_FILE              = "message_ids.json"
 
 intents = discord.Intents.default()
@@ -57,7 +57,7 @@ def load_ids():
             print(f"Loaded message IDs: reaction={reaction_message_id}, gender={gender_message_id}")
 
 
-# ── Verify button ────────────────────────────────────────────────────────────
+# ── Verify button ─────────────────────────────────────────────────────────────
 
 class VerifyView(View):
     def __init__(self):
@@ -87,7 +87,6 @@ async def setup_verify_channel():
         print(f"Could not find channel: {VERIFY_CHANNEL_NAME}")
         return
 
-    # Delete old bot messages in verify channel
     async for msg in channel.history(limit=20):
         if msg.author == client.user:
             await msg.delete()
@@ -101,7 +100,46 @@ async def setup_verify_channel():
     print("Verification message sent!")
 
 
-# ── Welcome message ──────────────────────────────────────────────────────────
+# ── Rules channel ─────────────────────────────────────────────────────────────
+
+async def setup_rules_channel():
+    await client.wait_until_ready()
+    guild   = client.get_guild(GUILD_ID)
+    channel = discord.utils.get(guild.text_channels, name=RULES_CHANNEL_NAME)
+    if channel is None:
+        print(f"Could not find channel: {RULES_CHANNEL_NAME}")
+        return
+
+    async for msg in channel.history(limit=20):
+        if msg.author == client.user:
+            await msg.delete()
+
+    embed = discord.Embed(
+        title="📜 Server Rules",
+        description=(
+            "**1. 💬 Respectful Communication**\n"
+            "All members are expected to engage in respectful and polite conversation. No harassment, hate speech, or bullying will be tolerated.\n\n"
+            "**2. 🚫 No Spam**\n"
+            "Avoid spamming text or voice channels. This includes excessive messages, irrelevant content, and unnecessary @mentions.\n\n"
+            "**3. 🔒 Respect Privacy**\n"
+            "Do not share personal information about yourself or others without explicit consent. This includes addresses, phone numbers, emails, etc.\n\n"
+            "**4. 📢 No Self-Promotion or Advertising**\n"
+            "Unsolicited promotion of other Discord servers, social media accounts, or products is not allowed.\n\n"
+            "**5. 👮 Follow Discord's Terms of Service**\n"
+            "By being a member of this server, you are expected to adhere to Discord's official Terms of Service and Community Guidelines.\n\n"
+            "**6. ⚠️ Consequences**\n"
+            "Violating these rules may result in a warning, mute, kick, or ban, depending on the severity of the violation.\n\n"
+            "**7. 📬 Report Issues**\n"
+            "If you encounter any issues or have concerns, please reach out to a moderator or server admin.\n\n"
+            "Welcome to our server, and let's build a great community together! 🙌"
+        ),
+        color=0x5865F2
+    )
+    await channel.send(embed=embed)
+    print("Rules message sent!")
+
+
+# ── Welcome message ───────────────────────────────────────────────────────────
 
 @client.event
 async def on_member_join(member):
@@ -134,7 +172,7 @@ async def on_member_join(member):
     print(f"Welcomed {member.name}")
 
 
-# ── Voice keep-alive ─────────────────────────────────────────────────────────
+# ── Voice keep-alive ──────────────────────────────────────────────────────────
 
 async def keep_in_voice():
     global voice_client
@@ -162,7 +200,7 @@ async def keep_in_voice():
         await asyncio.sleep(5)
 
 
-# ── Reaction roles setup ─────────────────────────────────────────────────────
+# ── Reaction roles setup ──────────────────────────────────────────────────────
 
 async def setup_reaction_roles():
     global reaction_message_id, gender_message_id
@@ -216,16 +254,17 @@ async def setup_reaction_roles():
     print("Reaction role messages sent and IDs saved!")
 
 
-# ── Events ───────────────────────────────────────────────────────────────────
+# ── Events ────────────────────────────────────────────────────────────────────
 
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
-    client.add_view(VerifyView())  # re-register persistent button
+    client.add_view(VerifyView())
     load_ids()
     client.loop.create_task(keep_in_voice())
     client.loop.create_task(setup_reaction_roles())
     client.loop.create_task(setup_verify_channel())
+    client.loop.create_task(setup_rules_channel())
 
 
 @client.event
