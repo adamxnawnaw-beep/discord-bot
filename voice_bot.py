@@ -27,6 +27,7 @@ VERIFY_CHANNEL_NAME   = "✅・verification"
 RULES_CHANNEL_NAME    = "📜・rules"
 VERIFIED_ROLE_NAME    = "Verified"
 BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eac1c2bad91e6e3cc7f2977eab1216e62d428&"
+RULES_IMAGE_URL       = "https://cdn.discordapp.com/attachments/1334601403066220657/1519875628533289030/ChatGPT_Image_Jun_26_2026_02_22_50_AM.png?ex=6a3f25fb&is=6a3dd47b&hm=53be7605bf5ea0aa19b0d7408a849a13b21748f8377e50ad2cd6c5a67013a3cc&"
 IDS_FILE              = "message_ids.json"
 
 intents = discord.Intents.default()
@@ -135,6 +136,7 @@ async def setup_rules_channel():
         ),
         color=0x5865F2
     )
+    embed.set_image(url=RULES_IMAGE_URL)
     await channel.send(embed=embed)
     print("Rules message sent!")
 
@@ -143,10 +145,10 @@ async def setup_rules_channel():
 
 @client.event
 async def on_member_join(member):
-    guild          = member.guild
-    welcome_ch     = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
-    verify_ch      = discord.utils.get(guild.text_channels, name=VERIFY_CHANNEL_NAME)
-    rules_ch       = discord.utils.get(guild.text_channels, name=RULES_CHANNEL_NAME)
+    guild      = member.guild
+    welcome_ch = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
+    verify_ch  = discord.utils.get(guild.text_channels, name=VERIFY_CHANNEL_NAME)
+    rules_ch   = discord.utils.get(guild.text_channels, name=RULES_CHANNEL_NAME)
 
     if welcome_ch is None:
         return
@@ -271,9 +273,9 @@ async def on_ready():
 async def on_raw_reaction_add(payload):
     if payload.user_id == client.user.id:
         return
-    guild     = client.get_guild(payload.guild_id)
-    emoji     = str(payload.emoji)
-    member    = guild.get_member(payload.user_id)
+    guild  = client.get_guild(payload.guild_id)
+    emoji  = str(payload.emoji)
+    member = guild.get_member(payload.user_id)
 
     if payload.message_id == reaction_message_id:
         role_name = REACTION_ROLES.get(emoji)
@@ -293,9 +295,9 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     if payload.user_id == client.user.id:
         return
-    guild     = client.get_guild(payload.guild_id)
-    emoji     = str(payload.emoji)
-    member    = guild.get_member(payload.user_id)
+    guild  = client.get_guild(payload.guild_id)
+    emoji  = str(payload.emoji)
+    member = guild.get_member(payload.user_id)
 
     if payload.message_id == reaction_message_id:
         role_name = REACTION_ROLES.get(emoji)
