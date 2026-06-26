@@ -2,15 +2,11 @@ import discord
 import asyncio
 import json
 import os
+from discord.ui import Button, View
 
-BOT_TOKEN    = os.environ.get("TOKEN")
+BOT_TOKEN    = "your actual token here"
 GUILD_ID     = 1334601401900204044
 VOICE_CH_ID  = 1351272912002224148
-
-# Temp voice settings
-TEMP_VOICE_CHANNEL_NAME = "Create-temp-voice🎤"
-TEMP_VOICE_CMDS_CHANNEL = "✨・temp-⇜vc-⇜cmnds"
-TEMP_VOICE_IMAGE = "https://cdn.discordapp.com/attachments/1350613186017230951/1518072231006179411/ChatGPT_Image_Jun_21_2026_02_23_19_AM.png?ex=6a3e8530&is=6a3d33b0&hm=583d5aa5424901c50a2d36c239f5404b11b1f27b903171caeee8ea380b7dbdd0&"
 
 REACTION_ROLES = {
     "<:bloods:1519511125170065419>":       "BLOODSTRIKE",
@@ -25,25 +21,25 @@ GENDER_ROLES = {
     "<:549263female:1519526755994566696>": "Female",
 }
 
-ROLES_CHANNEL_NAME = "🔦・self-role"
-IDS_FILE = "message_ids.json"
+ROLES_CHANNEL_NAME    = "🔦・self-role"
+WELCOME_CHANNEL_NAME  = "👋・welcome"
+VERIFY_CHANNEL_NAME   = "✅・verification"
+RULES_CHANNEL_NAME    = "📜・rules"
+VERIFIED_ROLE_NAME    = "Verified"
+BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eec1c2bad91e6e3cc7f2977eab1216e62d428&"
+IDS_FILE              = "message_ids.json"
 
 intents = discord.Intents.default()
-intents.voice_states = True
-intents.reactions = True
-intents.members = True
-intents.guilds = True
+intents.voice_states   = True
+intents.reactions      = True
+intents.members        = True
+intents.guilds         = True
 intents.guild_messages = True
 
 client = discord.Client(intents=intents)
-tree = discord.app_commands.CommandTree(client)
-
 voice_client = None
 reaction_message_id = None
-gender_message_id = None
-
-# Store temp channels: {voice_channel_id: {"owner": member_id, "text_msg": message}}
-temp_channels = {}
+gender_message_id   = None
 
 
 def save_ids():
@@ -57,9 +53,88 @@ def load_ids():
         with open(IDS_FILE) as f:
             data = json.load(f)
             reaction_message_id = data.get("reaction")
-            gender_message_id = data.get("gender")
+            gender_message_id   = data.get("gender")
             print(f"Loaded message IDs: reaction={reaction_message_id}, gender={gender_message_id}")
 
+
+# ── Verify button ────────────────────────────────────────────────────────────
+
+class VerifyView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="✅ Verify", style=discord.ButtonStyle.success, custom_id="verify_button")
+    async def verify(self, interaction: discord.Interaction, button: Button):
+        guild  = interaction.guild
+        member = interaction.user
+        role   = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
+        if role is None:
+            await interaction.response.send_message("❌ Verified role not found! Ask an admin to create it.", ephemeral=True)
+            return
+        if role in member.roles:
+            await interaction.response.send_message("✅ You are already verified!", ephemeral=True)
+            return
+        await member.add_roles(role)
+        await interaction.response.send_message("✅ You have been verified! Welcome to the server!", ephemeral=True)
+        print(f"Verified {member.name}")
+
+
+async def setup_verify_channel():
+    await client.wait_until_ready()
+    guild   = client.get_guild(GUILD_ID)
+    channel = discord.utils.get(guild.text_channels, name=VERIFY_CHANNEL_NAME)
+    if channel is None:
+        print(f"Could not find channel: {VERIFY_CHANNEL_NAME}")
+        return
+
+    # Delete old bot messages in verify channel
+    async for msg in channel.history(limit=20):
+        if msg.author == client.user:
+            await msg.delete()
+
+    embed = discord.Embed(
+        title="✅ Verification",
+        description="Click the button below to verify yourself and gain access to the server!",
+        color=0x2ecc71
+    )
+    await channel.send(embed=embed, view=VerifyView())
+    print("Verification message sent!")
+
+
+# ── Welcome message ──────────────────────────────────────────────────────────
+
+@client.event
+async def on_member_join(member):
+    guild          = member.guild
+    welcome_ch     = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
+    verify_ch      = discord.utils.get(guild.text_channels, name=VERIFY_CHANNEL_NAME)
+    rules_ch       = discord.utils.get(guild.text_channels, name=RULES_CHANNEL_NAME)
+
+    if welcome_ch is None:
+        return
+
+    verify_mention = verify_ch.mention if verify_ch else "#verification"
+    rules_mention  = rules_ch.mention  if rules_ch  else "#rules"
+
+    embed = discord.Embed(
+        title=f"👋 Welcome to {guild.name}, {member.name}!",
+        description=(
+            f"Hey {member.mention}, welcome to **{guild.name}**! 🎉\n\n"
+            f"📜 Please read the rules in {rules_mention}\n"
+            f"✅ Then head to {verify_mention} to verify yourself and get access!\n\n"
+            f"We're happy to have you here!"
+        ),
+        color=0x5865F2
+    )
+    embed.set_image(url=BANNER_URL)
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_footer(text=f"{guild.name} • Member #{guild.member_count}")
+
+    await welcome_ch.send(embed=embed)
+    print(f"Welcomed {member.name}")
+
+
+# ── Voice keep-alive ─────────────────────────────────────────────────────────
 
 async def keep_in_voice():
     global voice_client
@@ -87,11 +162,13 @@ async def keep_in_voice():
         await asyncio.sleep(5)
 
 
+# ── Reaction roles setup ─────────────────────────────────────────────────────
+
 async def setup_reaction_roles():
     global reaction_message_id, gender_message_id
     await client.wait_until_ready()
 
-    guild = client.get_guild(GUILD_ID)
+    guild   = client.get_guild(GUILD_ID)
     channel = discord.utils.get(guild.text_channels, name=ROLES_CHANNEL_NAME)
 
     if channel is None:
@@ -107,7 +184,7 @@ async def setup_reaction_roles():
         except discord.NotFound:
             print("Saved messages not found — recreating...")
             reaction_message_id = None
-            gender_message_id = None
+            gender_message_id   = None
 
     async for msg in channel.history(limit=50):
         if msg.author == client.user:
@@ -139,191 +216,25 @@ async def setup_reaction_roles():
     print("Reaction role messages sent and IDs saved!")
 
 
-# ── Temp Voice Buttons ──────────────────────────────────────────────────────
+# ── Events ───────────────────────────────────────────────────────────────────
 
-class TempVoiceView(discord.ui.View):
-    def __init__(self, owner_id, voice_channel):
-        super().__init__(timeout=None)
-        self.owner_id = owner_id
-        self.voice_channel = voice_channel
-
-    def is_owner(self, interaction):
-        return interaction.user.id == self.owner_id
-
-    @discord.ui.button(label="🔒 Lock", style=discord.ButtonStyle.danger, custom_id="tv_lock")
-    async def lock(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner(interaction):
-            return await interaction.response.send_message("Only the channel owner can do this!", ephemeral=True)
-        await self.voice_channel.set_permissions(interaction.guild.default_role, connect=False)
-        await interaction.response.send_message("🔒 Channel locked!", ephemeral=True)
-
-    @discord.ui.button(label="🔓 Unlock", style=discord.ButtonStyle.success, custom_id="tv_unlock")
-    async def unlock(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner(interaction):
-            return await interaction.response.send_message("Only the channel owner can do this!", ephemeral=True)
-        await self.voice_channel.set_permissions(interaction.guild.default_role, connect=True)
-        await interaction.response.send_message("🔓 Channel unlocked!", ephemeral=True)
-
-    @discord.ui.button(label="✏️ Rename", style=discord.ButtonStyle.primary, custom_id="tv_rename")
-    async def rename(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner(interaction):
-            return await interaction.response.send_message("Only the channel owner can do this!", ephemeral=True)
-        await interaction.response.send_modal(RenameModal(self.voice_channel))
-
-    @discord.ui.button(label="👥 Set Limit", style=discord.ButtonStyle.secondary, custom_id="tv_limit")
-    async def limit(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner(interaction):
-            return await interaction.response.send_message("Only the channel owner can do this!", ephemeral=True)
-        await interaction.response.send_modal(LimitModal(self.voice_channel))
-
-    @discord.ui.button(label="🗑️ Delete", style=discord.ButtonStyle.danger, custom_id="tv_delete")
-    async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner(interaction):
-            return await interaction.response.send_message("Only the channel owner can do this!", ephemeral=True)
-        await interaction.response.send_message("Deleting channel...", ephemeral=True)
-        try:
-            await self.voice_channel.delete()
-        except Exception:
-            pass
-
-
-class RenameModal(discord.ui.Modal, title="Rename Your Channel"):
-    name = discord.ui.TextInput(label="New Channel Name", max_length=32)
-
-    def __init__(self, voice_channel):
-        super().__init__()
-        self.voice_channel = voice_channel
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await self.voice_channel.edit(name=self.name.value)
-        await interaction.response.send_message(f"✅ Channel renamed to **{self.name.value}**!", ephemeral=True)
-
-
-class LimitModal(discord.ui.Modal, title="Set Member Limit"):
-    limit = discord.ui.TextInput(label="Member Limit (0 = unlimited)", max_length=2)
-
-    def __init__(self, voice_channel):
-        super().__init__()
-        self.voice_channel = voice_channel
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            val = int(self.limit.value)
-            await self.voice_channel.edit(user_limit=val)
-            await interaction.response.send_message(f"✅ Limit set to **{val}**!", ephemeral=True)
-        except ValueError:
-            await interaction.response.send_message("Please enter a valid number!", ephemeral=True)
-
-
-async def send_temp_voice_interface(guild, member, voice_channel):
-    cmds_channel = voice_channel
-
-    embed = discord.Embed(
-        title=f"🎤 {member.display_name}'s Channel",
-        description=(
-            f"**Channel:** {voice_channel.mention}\n"
-            f"**Owner:** {member.mention}\n\n"
-            "Use the buttons below to manage your temp voice channel!"
-        ),
-        color=0x5865F2
-    )
-    embed.set_image(url=TEMP_VOICE_IMAGE)
-    embed.set_footer(text="Channel will be deleted when everyone leaves")
-
-    view = TempVoiceView(owner_id=member.id, voice_channel=voice_channel)
-    msg = await cmds_channel.send(embed=embed, view=view)
-    return msg
-
-
-# ── Events ──────────────────────────────────────────────────────────────────
-async def setup_temp_voice_interface():
-    await client.wait_until_ready()
-    guild = client.get_guild(GUILD_ID)
-    channel = discord.utils.get(guild.text_channels, name=TEMP_VOICE_CMDS_CHANNEL)
-    if channel is None:
-        return
-
-    async for msg in channel.history(limit=20):
-        if msg.author == client.user:
-            await msg.delete()
-
-    embed = discord.Embed(
-        title="🎤 Temp Voice Channels",
-        description=(
-            "**How to use:**\n\n"
-            "🔹 Join **Create-temp-voice🎤** to create your own VC\n"
-            "🔹 A private channel will be created for you\n"
-            "🔹 Use the buttons in your VC to manage it\n\n"
-            "**Controls:**\n"
-            "🔒 **Lock** — Stop others from joining\n"
-            "🔓 **Unlock** — Allow others to join\n"
-            "✏️ **Rename** — Change your channel name\n"
-            "👥 **Set Limit** — Set max members\n"
-            "🗑️ **Delete** — Delete your channel\n\n"
-            "Your channel auto-deletes when everyone leaves!"
-        ),
-        color=0x5865F2
-    )
-    embed.set_image(url=TEMP_VOICE_IMAGE)
-    await channel.send(embed=embed)
-    print("Temp voice interface sent!")
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
+    client.add_view(VerifyView())  # re-register persistent button
     load_ids()
     client.loop.create_task(keep_in_voice())
     client.loop.create_task(setup_reaction_roles())
-    client.loop.create_task(setup_temp_voice_interface())
-@client.event
-async def on_voice_state_update(member, before, after):
-    global voice_client
-
-    # Keep bot in voice
-    if member.id == client.user.id:
-        if before.channel and not after.channel:
-            print("Bot disconnected from voice — reconnecting...")
-            voice_client = None
-        return
-
-    guild = member.guild
-
-    # User joined the "Create temp voice" channel
-    if after.channel and after.channel.name == TEMP_VOICE_CHANNEL_NAME:
-        category = after.channel.category
-        new_channel = await guild.create_voice_channel(
-            name=f"🎤 {member.display_name}'s VC",
-            category=category,
-            user_limit=0
-        )
-        await member.move_to(new_channel)
-        msg = await send_temp_voice_interface(guild, member, new_channel)
-        temp_channels[new_channel.id] = {"owner": member.id, "msg": msg}
-        print(f"Created temp VC for {member.name}")
-
-    # User left a temp channel — delete if empty
-    if before.channel and before.channel.id in temp_channels:
-        if len(before.channel.members) == 0:
-            data = temp_channels.pop(before.channel.id, None)
-            try:
-                await before.channel.delete()
-                print(f"Deleted empty temp VC: {before.channel.name}")
-            except Exception:
-                pass
-            if data and data.get("msg"):
-                try:
-                    await data["msg"].delete()
-                except Exception:
-                    pass
+    client.loop.create_task(setup_verify_channel())
 
 
 @client.event
 async def on_raw_reaction_add(payload):
     if payload.user_id == client.user.id:
         return
-
-    guild = client.get_guild(payload.guild_id)
-    emoji = str(payload.emoji)
-    member = guild.get_member(payload.user_id)
+    guild     = client.get_guild(payload.guild_id)
+    emoji     = str(payload.emoji)
+    member    = guild.get_member(payload.user_id)
 
     if payload.message_id == reaction_message_id:
         role_name = REACTION_ROLES.get(emoji)
@@ -343,10 +254,9 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     if payload.user_id == client.user.id:
         return
-
-    guild = client.get_guild(payload.guild_id)
-    emoji = str(payload.emoji)
-    member = guild.get_member(payload.user_id)
+    guild     = client.get_guild(payload.guild_id)
+    emoji     = str(payload.emoji)
+    member    = guild.get_member(payload.user_id)
 
     if payload.message_id == reaction_message_id:
         role_name = REACTION_ROLES.get(emoji)
@@ -360,6 +270,16 @@ async def on_raw_reaction_remove(payload):
         if role:
             await member.remove_roles(role)
             print(f"Removed '{role_name}' from {member.name}")
+
+
+@client.event
+async def on_voice_state_update(member, before, after):
+    global voice_client
+    if member.id != client.user.id:
+        return
+    if before.channel and not after.channel:
+        print("Bot disconnected from voice — reconnecting...")
+        voice_client = None
 
 
 client.run(BOT_TOKEN)
