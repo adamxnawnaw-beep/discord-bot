@@ -4,7 +4,7 @@ import json
 import os
 from discord.ui import Button, View
 
-BOT_TOKEN    = "your actual token here"
+BOT_TOKEN = os.environ.get("TOKEN")
 GUILD_ID     = 1334601401900204044
 VOICE_CH_ID  = 1351272912002224148
 
