@@ -31,7 +31,7 @@ CREATE_TEMP_CHANNEL   = "Create-temp-voice🎤"
 TEMP_CATEGORY_NAME    = "✦ 𝓣𝓔𝓜𝓟 𝓥𝓞𝓘𝓒𝓔 ✦"
 BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eac1c2bad91e6e3cc7f2977eab1216e62d428&"
 RULES_IMAGE_URL       = "https://cdn.discordapp.com/attachments/1334601403066220657/1519875628533289030/ChatGPT_Image_Jun_26_2026_02_22_50_AM.png?ex=6a3f25fb&is=6a3dd47b&hm=53be7605bf5ea0aa19b0d7408a849a13b21748f8377e50ad2cd6c5a67013a3cc&"
-TEMP_IMAGE_URL        = "https://cdn.discordapp.com/attachments/1334601401900204044/1782598824806_ChatGPT_Image_Jun_21__2026__02_23_19_AM.png"
+TEMP_IMAGE_URL        = "https://cdn.discordapp.com/attachments/1334601403066220657/1520557179772342433/ChatGPT_Image_Jun_21_2026_02_23_19_AM.png?ex=6a41a0ba&is=6a404f3a&hm=14bc77ea304ae14eff5c92bffbc0ed84b00b705a7545db4c400cf98549bf1359&"
 IDS_FILE              = "message_ids.json"
 
 intents = discord.Intents.default()
