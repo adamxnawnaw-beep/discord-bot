@@ -31,7 +31,7 @@ CREATE_TEMP_CHANNEL   = "Create-temp-voice🎤"
 TEMP_CATEGORY_NAME    = "✦ 𝓣𝓔𝓜𝓟 𝓥𝓞𝓘𝓒𝓔 ✦"
 BANNER_URL            = "https://cdn.discordapp.com/attachments/1334601402546126863/1519865912314953750/Screenshot_2026-06-25_024608.png?ex=6a3f1cef&is=6a3dcb6f&hm=58867e65359fbbbc21ed2ef8799eac1c2bad91e6e3cc7f2977eab1216e62d428&"
 RULES_IMAGE_URL       = "https://cdn.discordapp.com/attachments/1334601403066220657/1519875628533289030/ChatGPT_Image_Jun_26_2026_02_22_50_AM.png?ex=6a3f25fb&is=6a3dd47b&hm=53be7605bf5ea0aa19b0d7408a849a13b21748f8377e50ad2cd6c5a67013a3cc&"
-TEMP_IMAGE_URL        = "https://cdn.discordapp.com/attachments/1334601401900204044/1782598824806/ChatGPT_Image_Jun_21__2026__02_23_19_AM.png"
+TEMP_IMAGE_URL        = "https://cdn.discordapp.com/attachments/1334601401900204044/1782598824806_ChatGPT_Image_Jun_21__2026__02_23_19_AM.png"
 IDS_FILE              = "message_ids.json"
 
 intents = discord.Intents.default()
@@ -42,10 +42,10 @@ intents.guilds         = True
 intents.guild_messages = True
 
 client = discord.Client(intents=intents)
-voice_client     = None
+voice_client        = None
 reaction_message_id = None
 gender_message_id   = None
-temp_channels    = {}  # {channel_id: owner_id}
+temp_channels       = {}  # {channel_id: owner_id}
 
 
 def save_ids():
@@ -98,17 +98,20 @@ class TempVCView(View):
     async def rename(self, interaction: discord.Interaction, button: Button):
         if not await self.check_owner(interaction):
             return
-        await interaction.response.send_message("✏️ Reply with the new name for your channel!", ephemeral=True)
+        await interaction.response.send_message("✏️ Type the new name for your channel in this chat!", ephemeral=True)
 
         def check(m):
-            return m.author.id == interaction.user.id and m.channel == interaction.channel
+            return m.author.id == interaction.user.id and m.channel.id == self.channel_id
 
         try:
             msg = await client.wait_for("message", check=check, timeout=30)
             channel = interaction.guild.get_channel(self.channel_id)
             if channel:
                 await channel.edit(name=msg.content)
-                await msg.delete()
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
                 await interaction.followup.send(f"✅ Channel renamed to **{msg.content}**!", ephemeral=True)
         except asyncio.TimeoutError:
             await interaction.followup.send("⏱️ Timed out. Try again.", ephemeral=True)
@@ -117,10 +120,10 @@ class TempVCView(View):
     async def set_limit(self, interaction: discord.Interaction, button: Button):
         if not await self.check_owner(interaction):
             return
-        await interaction.response.send_message("👥 Reply with the max number of members (0 = unlimited)!", ephemeral=True)
+        await interaction.response.send_message("👥 Type the max number of members (0 = unlimited)!", ephemeral=True)
 
         def check(m):
-            return m.author.id == interaction.user.id and m.channel == interaction.channel
+            return m.author.id == interaction.user.id and m.channel.id == self.channel_id
 
         try:
             msg = await client.wait_for("message", check=check, timeout=30)
@@ -128,7 +131,10 @@ class TempVCView(View):
             channel = interaction.guild.get_channel(self.channel_id)
             if channel:
                 await channel.edit(user_limit=limit)
-                await msg.delete()
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
                 await interaction.followup.send(f"✅ Member limit set to **{limit}**!", ephemeral=True)
         except (asyncio.TimeoutError, ValueError):
             await interaction.followup.send("⏱️ Timed out or invalid number. Try again.", ephemeral=True)
@@ -140,9 +146,9 @@ class TempVCView(View):
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
             await interaction.response.send_message("🗑️ Deleting your channel...", ephemeral=True)
-            await channel.delete()
             if self.channel_id in temp_channels:
                 del temp_channels[self.channel_id]
+            await channel.delete()
 
 
 # ── Temp VC tutorial message ──────────────────────────────────────────────────
@@ -160,7 +166,7 @@ async def setup_temp_tutorial():
             await msg.delete()
 
     embed = discord.Embed(
-        title="🎤 Temp Voice Channels",
+        title="✨ Temp Voice Channels",
         description=(
             "**How to use:**\n\n"
             "◆ Join **Create-temp-voice🎤** to create your own VC\n"
@@ -207,36 +213,37 @@ async def on_voice_state_update(member, before, after):
         temp_channels[new_channel.id] = member.id
         await member.move_to(new_channel)
 
-        # Find the text commands channel and send control panel
-        cmnd_channel = discord.utils.get(guild.text_channels, name=TEMP_CMND_CHANNEL)
-        if cmnd_channel:
-            embed = discord.Embed(
-                title=f"🎤 {member.display_name}'s VC Controls",
-                description=(
-                    f"Hey {member.mention}! Your temp VC has been created.\n"
-                    "Use the buttons below to manage it!\n\n"
-                    "🔒 **Lock** — Stop others from joining\n"
-                    "🔓 **Unlock** — Allow others to join\n"
-                    "✏️ **Rename** — Change your channel name\n"
-                    "👥 **Set Limit** — Set max members\n"
-                    "🗑️ **Delete** — Delete your channel"
-                ),
-                color=0x2ecc71
-            )
-            embed.set_image(url=TEMP_IMAGE_URL)
-            await cmnd_channel.send(
-                content=member.mention,
-                embed=embed,
-                view=TempVCView(new_channel.id, member.id)
-            )
+        # Send control panel inside the voice channel's text chat
+        embed = discord.Embed(
+            title=f"🎤 {member.display_name}'s VC Controls",
+            description=(
+                f"Hey {member.mention}! Your temp VC has been created.\n"
+                "Use the buttons below to manage it!\n\n"
+                "🔒 **Lock** — Stop others from joining\n"
+                "🔓 **Unlock** — Allow others to join\n"
+                "✏️ **Rename** — Change your channel name\n"
+                "👥 **Set Limit** — Set max members\n"
+                "🗑️ **Delete** — Delete your channel"
+            ),
+            color=0x2ecc71
+        )
+        embed.set_image(url=TEMP_IMAGE_URL)
+        await new_channel.send(
+            content=member.mention,
+            embed=embed,
+            view=TempVCView(new_channel.id, member.id)
+        )
         print(f"Created temp VC for {member.display_name}")
 
     # Someone left a temp channel — delete if empty
     if before.channel and before.channel.id in temp_channels:
         if len(before.channel.members) == 0:
             del temp_channels[before.channel.id]
-            await before.channel.delete()
-            print(f"Deleted empty temp VC: {before.channel.name}")
+            try:
+                await before.channel.delete()
+                print(f"Deleted empty temp VC: {before.channel.name}")
+            except Exception:
+                pass
 
 
 # ── Verify button ─────────────────────────────────────────────────────────────
